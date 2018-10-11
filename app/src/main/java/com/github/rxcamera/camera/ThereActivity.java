@@ -155,6 +155,7 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         }, null);
 
 
+
         //创建捕获请求
         try {
             mPreviewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
