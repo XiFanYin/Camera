@@ -169,7 +169,6 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
                             } else {
                                 return false;
                             }
-
                         }
                     })
                     .map(bytes -> {
