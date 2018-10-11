@@ -149,9 +149,9 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
             ByteBuffer buffer = image.getPlanes()[0].getBuffer();
             byte[] data = new byte[buffer.remaining()];
             buffer.get(data);
-            image.close();
             Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
             imageView.setImageBitmap(bitmap);
+            image.close();
         }, null);
 
 
@@ -165,7 +165,6 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         mPreviewRequestBuilder.addTarget(surface);
         //获取显示数据的表面添加
         mPreviewRequestBuilder.addTarget(mImageReader.getSurface());
-
         //创建会话
         try {
             mCameraDevice.createCaptureSession(Arrays.asList(surface,mImageReader.getSurface()), new CameraCaptureSession.StateCallback() {
@@ -283,4 +282,6 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         }
 
     }
+
+
 }
