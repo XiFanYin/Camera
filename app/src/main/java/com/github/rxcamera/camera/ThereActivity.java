@@ -2,7 +2,6 @@ package com.github.rxcamera.camera;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
@@ -30,6 +29,12 @@ import android.widget.Toast;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.Predicate;
+import io.reactivex.schedulers.Schedulers;
+
+
 public class ThereActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener {
 
     private TextureView mTextureView;
@@ -41,6 +46,7 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
     private CameraCharacteristics characteristics;
     private ImageReader mImageReader;
     private CameraCaptureSession mCameraCaptureSession;
+    private long oldTime;
 
 
     @Override
@@ -60,6 +66,7 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         super.onResume();
         mTextureView.setSurfaceTextureListener(this);
     }
+
 
     //==================================SurfaceTexture生命周期回调===========================================================
     @Override
@@ -142,18 +149,38 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
             with = jpegSize[0].getWidth();
             height = jpegSize[0].getHeight();
         }
-        mImageReader = ImageReader.newInstance(with, height, ImageFormat.JPEG, 2);
+        mImageReader = ImageReader.newInstance(with, height, ImageFormat.JPEG, 1);
         mImageReader.setOnImageAvailableListener(reader -> {
             Image image = reader.acquireLatestImage();
             //我们可以将这帧数据转成字节数组，类似于Camera1的PreviewCallback回调的预览帧数据
             ByteBuffer buffer = image.getPlanes()[0].getBuffer();
             byte[] data = new byte[buffer.remaining()];
             buffer.get(data);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-            imageView.setImageBitmap(bitmap);
             image.close();
-        }, null);
+            Observable.just(data)
+                    .subscribeOn(Schedulers.io())
+                    .filter(new Predicate<byte[]>() {
+                        @Override
+                        public boolean test(byte[] bytes) throws Exception {
+                            Log.e("rrrrrrrrrr", System.currentTimeMillis()+"rrrrrr");
+                            if (System.currentTimeMillis() - oldTime > 3000) {
+                                oldTime = System.currentTimeMillis();
+                                return true;
+                            } else {
+                                return false;
+                            }
 
+                        }
+                    })
+                    .map(bytes -> {
+                        return BitmapFactory.decodeByteArray(data, 0, data.length);
+                    })
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(bitmap -> {
+                        imageView.setImageBitmap(bitmap);
+                    });
+
+        }, null);
 
 
         //创建捕获请求
@@ -166,9 +193,10 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         mPreviewRequestBuilder.addTarget(surface);
         //获取显示数据的表面添加
         mPreviewRequestBuilder.addTarget(mImageReader.getSurface());
+
         //创建会话
         try {
-            mCameraDevice.createCaptureSession(Arrays.asList(surface,mImageReader.getSurface()), new CameraCaptureSession.StateCallback() {
+            mCameraDevice.createCaptureSession(Arrays.asList(surface, mImageReader.getSurface()), new CameraCaptureSession.StateCallback() {
 
                 @Override//当摄像机设备完成配置时，这个方法就会被调用，并且会话可以开始处理捕获请求
                 public void onConfigured(@NonNull CameraCaptureSession session) {
@@ -283,6 +311,4 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         }
 
     }
-
-
 }
