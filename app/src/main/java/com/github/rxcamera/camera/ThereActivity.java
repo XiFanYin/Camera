@@ -3,6 +3,8 @@ package com.github.rxcamera.camera;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -11,20 +13,24 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
+import android.media.ImageReader;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class ThereActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener, View.OnClickListener {
-
 
     private TextureView mTextureView;
     private boolean mFlashSupported;
@@ -32,6 +38,9 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
     private CameraDevice mCameraDevice;
     private CaptureRequest.Builder mPreviewRequestBuilder;
     private ImageView imageView;
+    private CameraCharacteristics characteristics;
+    private ImageReader mImageReader;
+    private CameraCaptureSession mCameraCaptureSession;
 
 
     @Override
@@ -69,8 +78,7 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
 
     @Override
     public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-        Bitmap bitmap = mTextureView.getBitmap();
-        imageView.setImageBitmap(bitmap);
+
     }
 
 
@@ -123,6 +131,30 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
     private void previewCamera() {
         // 预览的输出Surface。
         Surface surface = new Surface(mTextureView.getSurfaceTexture());
+        //预览过程中获取到的数据
+        Size[] jpegSize = null;
+        if (characteristics != null) {
+            jpegSize = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(ImageFormat.JPEG);
+        }
+        int with = 640;
+        int height = 480;
+        if (jpegSize != null && jpegSize.length > 0) {
+            with = jpegSize[0].getWidth();
+            height = jpegSize[0].getHeight();
+        }
+        mImageReader = ImageReader.newInstance(with, height, ImageFormat.JPEG, 2);
+        mImageReader.setOnImageAvailableListener(reader -> {
+            Image image = reader.acquireLatestImage();
+            //我们可以将这帧数据转成字节数组，类似于Camera1的PreviewCallback回调的预览帧数据
+            ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+            byte[] data = new byte[buffer.remaining()];
+            buffer.get(data);
+            image.close();
+            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+            imageView.setImageBitmap(bitmap);
+        }, null);
+
+
         //创建捕获请求
         try {
             mPreviewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
@@ -131,10 +163,12 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         }
         //添加显示表面
         mPreviewRequestBuilder.addTarget(surface);
+        //获取显示数据的表面添加
+        mPreviewRequestBuilder.addTarget(mImageReader.getSurface());
 
         //创建会话
         try {
-            mCameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
+            mCameraDevice.createCaptureSession(Arrays.asList(surface,mImageReader.getSurface()), new CameraCaptureSession.StateCallback() {
 
                 @Override//当摄像机设备完成配置时，这个方法就会被调用，并且会话可以开始处理捕获请求
                 public void onConfigured(@NonNull CameraCaptureSession session) {
@@ -156,18 +190,21 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
      * @param session
      */
     private void bindPreview(@NonNull CameraCaptureSession session) {
+        mCameraCaptureSession = session;
+
         // 相机已经关闭
         if (null == mCameraDevice) {
             return;
         }
         // 自动对焦应
         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-        // 转换层请求数据类型
-        CaptureRequest mPreviewRequest = mPreviewRequestBuilder.build();
         //闪光灯自动开启
         if (mFlashSupported) {
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
         }
+
+        // 转换层请求数据类型
+        CaptureRequest mPreviewRequest = mPreviewRequestBuilder.build();
 
 
         try {
@@ -186,7 +223,7 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         try {
             for (String cameraId : manager.getCameraIdList()) {
                 //获取相机的相关参数
-                CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+                characteristics = manager.getCameraCharacteristics(cameraId);
                 // 不使用前置摄像头。
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
@@ -210,6 +247,27 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
         }
     }
 
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        if (mCameraCaptureSession != null) {
+            mCameraCaptureSession.close();
+            mCameraCaptureSession = null;
+        }
+
+        if (mCameraDevice != null) {
+            mCameraDevice.close();
+            mCameraDevice = null;
+        }
+
+        if (mImageReader != null) {
+            mImageReader.close();
+            mImageReader = null;
+        }
+
+    }
 
     @Override
     public void onClick(View v) {
