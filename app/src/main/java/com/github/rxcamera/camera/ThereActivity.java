@@ -159,18 +159,18 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
             image.close();
             Observable.just(data)
                     .subscribeOn(Schedulers.io())
-                    .filter(new Predicate<byte[]>() {
-                        @Override
-                        public boolean test(byte[] bytes) throws Exception {
-                            Log.e("rrrrrrrrrr", System.currentTimeMillis()+"rrrrrr");
-                            if (System.currentTimeMillis() - oldTime > 3000) {
-                                oldTime = System.currentTimeMillis();
-                                return true;
-                            } else {
-                                return false;
-                            }
-                        }
-                    })
+//                    .filter(new Predicate<byte[]>() {
+//                        @Override
+//                        public boolean test(byte[] bytes) throws Exception {
+//                            Log.e("rrrrrrrrrr", System.currentTimeMillis()+"rrrrrr");
+//                            if (System.currentTimeMillis() - oldTime > 3000) {
+//                                oldTime = System.currentTimeMillis();
+//                                return true;
+//                            } else {
+//                                return false;
+//                            }
+//                        }
+//                    })
                     .map(bytes -> {
                         return BitmapFactory.decodeByteArray(data, 0, data.length);
                     })
