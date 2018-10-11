@@ -18,7 +18,6 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
@@ -31,7 +30,6 @@ import java.util.Arrays;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
 
 
@@ -172,6 +170,7 @@ public class ThereActivity extends AppCompatActivity implements TextureView.Surf
 //                        }
 //                    })
                     .map(bytes -> {
+
                         return BitmapFactory.decodeByteArray(data, 0, data.length);
                     })
                     .observeOn(AndroidSchedulers.mainThread())

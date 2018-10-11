@@ -25,9 +25,13 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".TwoActivity" />
+        <activity android:name=".TwoActivity"
+            android:screenOrientation="portrait"
+            />
 
-        <activity android:name=".ThereActivity" />
+        <activity
+            android:name=".ThereActivity"
+            android:screenOrientation="portrait" />
 
 
     </application>
